@@ -21,6 +21,7 @@ class Data:
                  minimum: Optional[float] = None,
                  maximum: Optional[float] = None,
                  unit: Optional[str] = None,
+                 encoding: Optional[str] = None
                  ) -> None:
         #: The data name as a string.
         self.name: str = name
@@ -49,6 +50,8 @@ class Data:
 
         # ToDo: Remove once types are handled properly.
         self.is_signed: bool = False
+        
+        self.encoding: str = encoding
 
     def raw_to_scaled(
         self, raw_value: Union[int, float], decode_choices: bool = True

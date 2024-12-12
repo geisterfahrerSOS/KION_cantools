@@ -78,6 +78,17 @@ def _encode_signal_values(signals: Sequence[Union["Signal", "Data"]],
         conversion = signal.conversion
         value = signal_values[name]
 
+
+        if signal.encoding == 'asc':
+            raw_values[name] = value.ljust(signal.length * signal.maximum).encode('ascii')
+            continue
+
+        if signal.encoding == 'bcd':
+            msd = value // 10
+            lsd = value % 10
+            raw_values[name] = (msd << 4) | lsd
+            continue
+
         if isinstance(value, (int, float)):
             if scaling:
                 raw_values[name] = conversion.numeric_scaled_to_raw(value)
@@ -181,7 +192,13 @@ def decode_data(data: bytes,
             # signal value was removed above...
             continue
 
-        if scaling:
+        if signal.encoding == 'bcd':
+            msd = (value >> 4) & 0xF  # Upper 4 bits
+            lsd = value & 0xF         # Lower 4 bits
+            decoded[signal.name] = msd * 10 + lsd
+        elif signal.encoding == 'asc':
+            decoded[signal.name] = bytes([b for b in value if 32 <= b <= 126]).decode('ascii', errors='ignore').rstrip('\x00')  # Remove non-ASCII bytes, decode ASCII, and strip null characters
+        elif scaling:
             decoded[signal.name] = signal.conversion.raw_to_scaled(value, decode_choices)
         elif (decode_choices
               and signal.conversion.choices
@@ -197,7 +214,15 @@ def create_encode_decode_formats(signals: Sequence[Union["Data", "Signal"]], num
     format_length = (8 * number_of_bytes)
 
     def get_format_string_type(signal: Union["Data", "Signal"]) -> str:
-        if signal.conversion.is_float:
+        if signal.encoding == 'uns':
+            return 'u'
+        elif signal.encoding == 'sgn':
+            return 's'
+        elif signal.encoding =='bcd':
+            return 'u'
+        elif signal.encoding =='asc':
+            return 'r'
+        elif signal.conversion.is_float:
             return 'f'
         elif signal.is_signed:
             return 's'
@@ -211,8 +236,15 @@ def create_encode_decode_formats(signals: Sequence[Union["Data", "Signal"]], num
         return fmt, padding_mask, None
 
     def data_item(signal: Union["Data", "Signal"]) -> tuple[str, str, str]:
-        fmt = f'{get_format_string_type(signal)}{signal.length}'
-        padding_mask = '0' * signal.length
+        if signal.encoding == 'asc':
+            fmt = f'{get_format_string_type(signal)}{signal.length*signal.maximum}' # u 8 * amount of bytes
+            padding_mask = '0' * signal.length * signal.maximum
+        elif signal.encoding == 'bcd':
+            fmt = f'{get_format_string_type(signal)}{8}'*signal.maximum # u4*size in bytes
+            padding_mask = '0' * signal.length * signal.maximum
+        else:
+            fmt = f'{get_format_string_type(signal)}{signal.length}'
+            padding_mask = '0' * signal.length
 
         return fmt, padding_mask, signal.name
 
@@ -246,7 +278,12 @@ def create_encode_decode_formats(signals: Sequence[Union["Data", "Signal"]], num
                 items.append(padding_item(padding_length))
 
             items.append(data_item(signal))
-            start = (start_bit(signal) + signal.length)
+            if signal.encoding == 'asc':
+                start = (start_bit(signal) + signal.length*signal.maximum)
+            elif signal.encoding == 'bcd':
+                start = (start_bit(signal) + signal.length*signal.maximum)
+            else:
+                start = (start_bit(signal) + signal.length)
 
         if start < format_length:
             length = format_length - start

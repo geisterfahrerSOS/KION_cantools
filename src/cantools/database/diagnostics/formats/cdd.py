@@ -96,7 +96,8 @@ def _load_data_types(ecu_doc):
             elif key == 'maxsz':
                 maximum = int(value)
             else:
-                LOGGER.debug("Ignoring unsupported attribute '%s'.", key)
+                pass
+                # LOGGER.debug("Ignoring unsupported attribute '%s'.", key)
 
         if ctype.attrib['bo'] == '21':
             byte_order = 'big_endian'
@@ -163,7 +164,8 @@ def _load_data_element(data, offset, data_types):
                 conversion=conversion,
                 minimum=data_type.minimum,
                 maximum=data_type.maximum,
-                unit=data_type.unit)
+                unit=data_type.unit,
+                encoding=data_type.encoding)
 
 
 def _load_did_element(did, data_types, did_data_lib):
@@ -190,11 +192,21 @@ def _load_did_element(did, data_types, did_data_lib):
 
         if data:
             datas.append(data)
-            offset += data.length
+            if data.encoding == 'asc':
+                offset += data.length*data.maximum
+            else:
+                offset += data.length
 
     identifier = int(did.find('STATICVALUE').attrib['v'])
     name = did.find('QUAL').text
-    length = (offset + 7) // 8
+    # length = (offset + 7) // 8
+    length = 0
+    for data in datas:
+        if data.encoding == 'asc':
+                length += data.length*data.maximum
+        else:
+            length += data.length
+    length //= 8
 
     return Did(identifier=identifier,
                name=name,
@@ -228,9 +240,12 @@ def load_string(string):
 
     for diag_class in var.findall('DIAGCLASS'):
         for diag_inst in diag_class.findall('DIAGINST'):
-            did = _load_did_element(diag_inst,
-                                    data_types,
-                                    did_data_lib)
-            dids.append(did)
+            try:
+                did = _load_did_element(diag_inst,
+                                        data_types,
+                                        did_data_lib)
+                dids.append(did)
+            except:
+                pass
 
     return InternalDatabase(dids)

@@ -70,12 +70,13 @@ class Database:
                            did.name)
 
         if did.identifier in self._identifier_to_did:
-            LOGGER.warning(
-                "Overwriting DID '%s' with '%s' in the identifier to DID "
-                "dictionary because they have identical identifiers 0x%x.",
-                self._identifier_to_did[did.identifier].name,
-                did.name,
-                did.identifier)
+            pass
+            # LOGGER.warning(
+            #     "Overwriting DID '%s' with '%s' in the identifier to DID "
+            #     "dictionary because they have identical identifiers 0x%x.",
+            #     self._identifier_to_did[did.identifier].name,
+            #     did.name,
+            #     did.identifier)
 
         self._name_to_did[did.name] = did
         self._identifier_to_did[did.identifier] = did
