@@ -1,5 +1,7 @@
 |github-actions| |coverage|
 
+**This is a fork of cantools with support for ascii and bcd encoded datatypes**
+
 About
 =====
 
