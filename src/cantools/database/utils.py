@@ -98,7 +98,10 @@ def _encode_signal_values(signals: Sequence[Union["Signal", "Data"]],
             continue
 
         if isinstance(value, str):
-            raw_values[name] = conversion.choice_to_number(value)
+            try:
+                raw_values[name] = conversion.choice_to_number(value)
+            except KeyError:
+                raw_values[name] = int(value[2:], 16)
             continue
 
         if isinstance(value, NamedSignalValue):
